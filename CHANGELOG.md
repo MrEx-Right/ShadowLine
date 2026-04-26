@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-04-26
+### 🐚 The "Interactive Shell" Update
+
+### ✨ Added
+- **Interactive C2 Console:** Integrated the `readline` library into the C2 server, transforming the basic CLI into a fully interactive shell experience complete with command history (Up/Down arrows).
+- **Auto-Exec Mode:** Dropped the restrictive `exec` command requirement. Operators can now interact natively with the compromised host (e.g., typing `whoami` or `dir` directly) while inside the agent's context.
+- **Ctrl+C Protection:** Hardened the C2 console against accidental closures. Pressing `Ctrl+C` (SIGINT) now gracefully clears the current input prompt instead of instantly terminating the entire C2 server process.
+
+### 🐛 Fixed
+- **Builder Compilation Failure:** Resolved a syntax error (`declared and not used: n`) in the SOCKS5 proxy module within `agent.go` that previously caused the ShadowLine Builder to fail when generating new payloads.
+
 ## [1.2.0] - 2026-04-08
 ### 🕸️ The "Shadow Walk" Update
 

@@ -397,7 +397,7 @@ func handleSocks5(conn net.Conn) {
 	conn.Write([]byte{0x05, 0x00})
 
 	// Request
-	n, err := io.ReadAtLeast(conn, buf[:4], 4)
+	_, err = io.ReadAtLeast(conn, buf[:4], 4)
 	if err != nil || buf[0] != 0x05 || buf[1] != 0x01 {
 		return
 	}

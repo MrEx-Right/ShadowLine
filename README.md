@@ -63,13 +63,13 @@ cp config.json.example config.json
 
 # 4. Run the Server
 cd server
-go run main.go
+go run .
 ```
 ### 🛠️ Building Agents
 Use the interactive builder to generate payloads for any OS.
 ```bash
 cd builder
-go run builder.go
+go run .
 ```
 ## ⚠️ Legal Disclaimer
 

